@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>系統操作手冊生成系統</title>
+    <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/animate.css/4.1.1/animate.min.css">
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;700&display=swap');
+        :root {
+            --primary-color: #4F46E5;
+            --primary-light: #818CF8;
+            --primary-dark: #4338CA;
+            --accent-color: #06B6D4;
+            --success-color: #10B981;
+            --warning-color: #F59E0B;
+            --error-color: #EF4444;
+            --gradient-primary: linear-gradient(135deg, #4F46E5 0%, #818CF8 100%);
+            --gradient-accent: linear-gradient(135deg, #06B6D4 0%, #0EA5E9 100%);
+            --gradient-success: linear-gradient(135deg, #10B981 0%, #34D399 100%);
+            --gradient-error: linear-gradient(135deg, #EF4444 0%, #F87171 100%);
+        }
+        body {
+            font-family: 'Noto Sans TC', sans-serif;
+            background-color: #f8fafc;
+            background-image:
+                radial-gradient(circle at 25% 25%, rgba(79, 70, 229, 0.05) 0%, transparent 50%),
+                radial-gradient(circle at 75% 75%, rgba(6, 182, 212, 0.05) 0%, transparent 50%);
+            min-height: 100vh;
+            color: #1F2937;
+        }
+        .container { max-width: 700px; background: white; box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08); border-radius: 16px; border: 1px solid rgba(226, 232, 240, 0.8); overflow: hidden; }
+        .header { background: var(--gradient-primary); padding: 2rem; color: white; position: relative; overflow: hidden; }
+        .header::before { content: ''; position: absolute; top: 0; left: 0; right: 0; bottom: 0; background-image: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.1'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E"); opacity: 0.2; }
+        .file-input-wrapper { position: relative; overflow: hidden; border: 2px dashed #E2E8F0; border-radius: 12px; transition: all 0.3s ease; background-color: #F8FAFC; }
+        .file-input-wrapper:hover { transform: translateY(-2px); border-color: var(--primary-color); background-color: rgba(79, 70, 229, 0.03); box-shadow: 0 5px 15px rgba(79, 70, 229, 0.1); }
+        .file-input-wrapper.file-selected { border-color: var(--success-color); background-color: rgba(16, 185, 129, 0.03); box-shadow: 0 5px 15px rgba(16, 185, 129, 0.1); }
+        .file-input { position: absolute; top: 0; left: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; z-index: 2; }
+        .file-label { display: flex; align-items: center; padding: 1.25rem; cursor: pointer; z-index: 1; }
+        .file-icon { margin-right: 16px; transition: all 0.3s ease; }
+        .file-input-wrapper:hover .file-icon { transform: scale(1.05); }
+        .file-name { margin-top: 4px; font-size: 0.875rem; color: #64748B; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 250px; transition: all 0.3s ease; }
+        .submit-btn { background: var(--gradient-primary); transition: all 0.3s ease; transform: translateY(0); position: relative; overflow: hidden; }
+        .submit-btn:hover:not(:disabled) { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(79, 70, 229, 0.2); }
+        .submit-btn:disabled { background: linear-gradient(135deg, #CBD5E1 0%, #E2E8F0 100%); }
+        .submit-btn::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.2), transparent); transform: translateX(-100%); }
+        .submit-btn:hover::after { animation: shimmer 1.5s infinite; }
+        @keyframes shimmer { 100% { transform: translateX(100%); } }
+        .status-container { transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); max-height: 0; opacity: 0; overflow: hidden; }
+        .status-container.active { max-height: 300px; opacity: 1; }
+        .progress-bar-container { height: 8px; background: #F1F5F9; border-radius: 4px; overflow: hidden; }
+        .progress-bar { height: 100%; background: var(--gradient-accent); border-radius: 4px; width: 0%; transition: width 0.5s ease, background 0.5s ease; position: relative; overflow: hidden; }
+        .progress-bar.error { background: var(--gradient-error); }
+        .progress-bar::after { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 100%; background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.4), transparent); animation: shimmer 2s infinite; }
+        .step-number { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 50%; background: var(--gradient-primary); color: white; font-weight: bold; margin-right: 12px; box-shadow: 0 3px 6px rgba(79, 70, 229, 0.3); }
+        @keyframes pulse { 0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0.7); } 70% { transform: scale(1.05); box-shadow: 0 0 0 10px rgba(79, 70, 229, 0); } 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(79, 70, 229, 0); } }
+        .pulse-animation { animation: pulse 2s infinite; }
+        .download-btn { background: var(--gradient-success); transition: all 0.3s ease; }
+        .download-btn:hover { transform: translateY(-2px); box-shadow: 0 10px 20px rgba(16, 185, 129, 0.2); }
+        .reset-btn { transition: all 0.3s ease; }
+        .reset-btn:hover { background-color: #F1F5F9; transform: translateY(-2px); }
+        .status-box { background: #F8FAFC; border: 1px solid #E2E8F0; border-radius: 8px; transition: all 0.3s ease; }
+        .status-box:hover { box-shadow: 0 5px 10px rgba(0, 0, 0, 0.03); }
+        .decoration-dot { position: absolute; border-radius: 50%; background: white; opacity: 0.1; }
+        .dot-1 { width: 100px; height: 100px; top: -30px; right: -30px; }
+        .dot-2 { width: 50px; height: 50px; bottom: 20px; left: 30px; }
+        .dot-3 { width: 25px; height: 25px; top: 30px; left: 50px; }
+        .hover-lift { transition: transform 0.3s ease, box-shadow 0.3s ease; }
+        .hover-lift:hover { transform: translateY(-5px); box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1); }
+    </style>
+</head>
+<body class="flex items-center justify-center p-6">
+    <div class="container mx-auto p-0 animate__animated animate__fadeIn hover-lift">
+        <div class="header relative">
+            <div class="decoration-dot dot-1"></div>
+            <div class="decoration-dot dot-2"></div>
+            <div class="decoration-dot dot-3"></div>
+            <div class="relative z-10">
+                <h1 class="text-3xl font-bold mb-2 tracking-tight">系統操作手冊生成系統</h1>
+                <p class="text-white text-opacity-90">上傳必要檔案，一鍵生成完整專業文件</p>
+            </div>
+        </div>
+
+        <div class="p-8 space-y-6">
+            <div class="file-input-group animate__animated animate__fadeInUp" style="animation-delay: 0.1s">
+                <label class="flex items-center mb-3 font-medium text-gray-800"><span class="step-number">1</span>選擇主 Word 文件範本</label>
+                <div class="file-input-wrapper" id="main-docx-wrapper">
+                    <input type="file" id="main_docx" class="file-input" accept=".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document">
+                    <div class="file-label">
+                        <div class="file-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-600" viewBox="0 0 24 24" fill="none"><path d="M7 18H17V16H7V18Z" fill="currentColor"/><path d="M17 14H7V12H17V14Z" fill="currentColor"/><path d="M7 10H11V8H7V10Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6 2C4.34315 2 3 3.34315 3 5V19C3 20.6569 4.34315 22 6 22H18C19.6569 22 21 20.6569 21 19V9C21 5.13401 17.866 2 14 2H6ZM6 4H13V9H19V19C19 19.5523 18.5523 20 18 20H6C5.44772 20 5 19.5523 5 19V5C5 4.44772 5.44772 4 6 4ZM15 4.10002C16.6113 4.4271 17.9413 5.52906 18.584 7H15V4.10002Z" fill="currentColor"/></svg></div>
+                        <div>
+                            <div class="font-medium">Word 文件範本</div>
+                            <div class="file-name" id="main-docx-name">尚未選擇檔案</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="file-input-group animate__animated animate__fadeInUp" style="animation-delay: 0.2s">
+                <label class="flex items-center mb-3 font-medium text-gray-800"><span class="step-number">2</span>選擇 Excel 章節設定檔</label>
+                <div class="file-input-wrapper" id="config-file-wrapper">
+                    <input type="file" id="config_file" class="file-input" accept=".xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet">
+                    <div class="file-label">
+                        <div class="file-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-600" viewBox="0 0 24 24" fill="none"><path d="M7 18H17V16H7V18Z" fill="currentColor"/><path d="M17 14H7V12H17V14Z" fill="currentColor"/><path d="M7 10H11V8H7V10Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6 2C4.34315 2 3 3.34315 3 5V19C3 20.6569 4.34315 22 6 22H18C19.6569 22 21 20.6569 21 19V9C21 5.13401 17.866 2 14 2H6ZM6 4H13V9H19V19C19 19.5523 18.5523 20 18 20H6C5.44772 20 5 19.5523 5 19V5C5 4.44772 5.44772 4 6 4ZM15 4.10002C16.6113 4.4271 17.9413 5.52906 18.584 7H15V4.10002Z" fill="currentColor"/></svg></div>
+                        <div>
+                            <div class="font-medium">Excel 設定檔</div>
+                            <div class="file-name" id="config-file-name">尚未選擇檔案</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="file-input-group animate__animated animate__fadeInUp" style="animation-delay: 0.3s">
+                <label class="flex items-center mb-3 font-medium text-gray-800"><span class="step-number">3</span>選擇包含所有圖片資料夾的壓縮檔</label>
+                <div class="file-input-wrapper" id="images-zip-wrapper">
+                    <input type="file" id="images_zip" class="file-input" accept=".zip,application/zip">
+                    <div class="file-label">
+                        <div class="file-icon"><svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-yellow-500" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M2 6C2 4.34315 3.34315 3 5 3H19C20.6569 3 22 4.34315 22 6V18C22 19.6569 20.6569 21 19 21H5C3.34315 21 2 19.6569 2 18V6ZM5 5H19C19.5523 5 20 5.44772 20 6V18C20 18.5523 19.5523 19 19 19H5C4.44772 19 4 18.5523 4 18V6C4 5.44772 4.44772 5 5 5Z" fill="currentColor"/><path d="M13 7H11V9H13V7Z" fill="currentColor"/><path d="M13 11H11V13H13V11Z" fill="currentColor"/><path d="M11 15H13V17H11V15Z" fill="currentColor"/></svg></div>
+                        <div>
+                            <div class="font-medium">圖片壓縮檔</div>
+                            <div class="file-name" id="images-zip-name">尚未選擇檔案</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="mt-8 text-center animate__animated animate__fadeInUp" style="animation-delay: 0.4s">
+                <button id="submitBtn" class="submit-btn px-8 py-3 rounded-full text-white font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center mx-auto">
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    開始生成
+                </button>
+            </div>
+
+            <div class="status-container mt-6 rounded-lg" id="status-container">
+                <div class="mb-3">
+                    <div class="flex justify-between mb-2">
+                        <span class="font-medium text-gray-700" id="progress-text">準備就緒</span>
+                        <span class="font-medium text-gray-700" id="progress-percentage">0%</span>
+                    </div>
+                    <div class="progress-bar-container">
+                        <div class="progress-bar" id="progress-bar"></div>
+                    </div>
+                </div>
+                <div id="status" class="status-box text-gray-600 p-4 max-h-40 overflow-y-auto font-mono text-sm">請選擇全部三個檔案並點擊開始。</div>
+            </div>
+
+            <div id="download-area" class="mt-6 text-center hidden"></div>
+        </div>
+    </div>
+
+    <script>
+        // --- 元素選擇 ---
+        const mainDocInput = document.getElementById('main_docx');
+        const configInput = document.getElementById('config_file');
+        const zipInput = document.getElementById('images_zip');
+        const submitBtn = document.getElementById('submitBtn');
+        const statusDiv = document.getElementById('status');
+        const downloadArea = document.getElementById('download-area');
+        const statusContainer = document.getElementById('status-container');
+        const progressBar = document.getElementById('progress-bar');
+        const progressText = document.getElementById('progress-text');
+        const progressPercentage = document.getElementById('progress-percentage');
+        
+        const PROCESSING_ANIMATION_DURATION = 5000; // 5 秒
+
+        let animationFrameId = null; // 用來控制動畫的 ID
+
+        // --- 初始化狀態 ---
+        submitBtn.disabled = true;
+
+        // --- 檔案選擇處理 (無變動) ---
+        function handleFileInput(input, nameElementId, wrapperElementId) {
+            input.addEventListener('change', () => {
+                const wrapper = document.getElementById(wrapperElementId);
+                const nameEl = document.getElementById(nameElementId);
+                if (input.files[0]) {
+                    nameEl.textContent = input.files[0].name;
+                    wrapper.classList.add('file-selected');
+                    const iconContainer = wrapper.querySelector('.file-icon');
+                    iconContainer.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-500 animate__animated animate__bounceIn" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M22 12C22 17.5228 17.5228 22 12 22C6.47715 22 2 17.5228 2 12C2 6.47715 6.47715 2 12 2C17.5228 2 22 6.47715 22 12ZM16.0303 8.96967C16.3232 9.26256 16.3232 9.73744 16.0303 10.0303L11.0303 15.0303C10.7374 15.3232 10.2626 15.3232 9.96967 15.0303L7.96967 13.0303C7.67678 12.7374 7.67678 12.2626 7.96967 11.9697C8.26256 11.6768 8.73744 11.6768 9.03033 11.9697L10.5 13.4393L14.9697 8.96967C15.2626 8.67678 15.7374 8.67678 16.0303 8.96967Z" fill="currentColor"/></svg>`;
+                } else {
+                    nameEl.textContent = '尚未選擇檔案';
+                    wrapper.classList.remove('file-selected');
+                    resetIcon(wrapperElementId);
+                }
+                checkAllFilesSelected();
+            });
+        }
+        function resetIcon(wrapperElementId) {
+            const iconMap = {
+                'main-docx-wrapper': '<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-blue-600" viewBox="0 0 24 24" fill="none"><path d="M7 18H17V16H7V18Z" fill="currentColor"/><path d="M17 14H7V12H17V14Z" fill="currentColor"/><path d="M7 10H11V8H7V10Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6 2C4.34315 2 3 3.34315 3 5V19C3 20.6569 4.34315 22 6 22H18C19.6569 22 21 20.6569 21 19V9C21 5.13401 17.866 2 14 2H6ZM6 4H13V9H19V19C19 19.5523 18.5523 20 18 20H6C5.44772 20 5 19.5523 5 19V5C5 4.44772 5.44772 4 6 4ZM15 4.10002C16.6113 4.4271 17.9413 5.52906 18.584 7H15V4.10002Z" fill="currentColor"/></svg>',
+                'config-file-wrapper': '<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-green-600" viewBox="0 0 24 24" fill="none"><path d="M7 18H17V16H7V18Z" fill="currentColor"/><path d="M17 14H7V12H17V14Z" fill="currentColor"/><path d="M7 10H11V8H7V10Z" fill="currentColor"/><path fill-rule="evenodd" clip-rule="evenodd" d="M6 2C4.34315 2 3 3.34315 3 5V19C3 20.6569 4.34315 22 6 22H18C19.6569 22 21 20.6569 21 19V9C21 5.13401 17.866 2 14 2H6ZM6 4H13V9H19V19C19 19.5523 18.5523 20 18 20H6C5.44772 20 5 19.5523 5 19V5C5 4.44772 5.44772 4 6 4ZM15 4.10002C16.6113 4.4271 17.9413 5.52906 18.584 7H15V4.10002Z" fill="currentColor"/></svg>',
+                'images-zip-wrapper': '<svg xmlns="http://www.w3.org/2000/svg" class="h-10 w-10 text-yellow-500" viewBox="0 0 24 24" fill="none"><path fill-rule="evenodd" clip-rule="evenodd" d="M2 6C2 4.34315 3.34315 3 5 3H19C20.6569 3 22 4.34315 22 6V18C22 19.6569 20.6569 21 19 21H5C3.34315 21 2 19.6569 2 18V6ZM5 5H19C19.5523 5 20 5.44772 20 6V18C20 18.5523 19.5523 19 19 19H5C4.44772 19 4 18.5523 4 18V6C4 5.44772 4.44772 5 5 5Z" fill="currentColor"/><path d="M13 7H11V9H13V7Z" fill="currentColor"/><path d="M13 11H11V13H13V11Z" fill="currentColor"/><path d="M11 15H13V17H11V15Z" fill="currentColor"/></svg>'
+            };
+            document.getElementById(wrapperElementId).querySelector('.file-icon').innerHTML = iconMap[wrapperElementId];
+        }
+        function checkAllFilesSelected() {
+            if (mainDocInput.files[0] && configInput.files[0] && zipInput.files[0]) {
+                submitBtn.disabled = false;
+                submitBtn.classList.add('pulse-animation');
+            } else {
+                submitBtn.disabled = true;
+                submitBtn.classList.remove('pulse-animation');
+            }
+        }
+        handleFileInput(mainDocInput, 'main-docx-name', 'main-docx-wrapper');
+        handleFileInput(configInput, 'config-file-name', 'config-file-wrapper');
+        handleFileInput(zipInput, 'images-zip-name', 'images-zip-wrapper');
+        
+        // --- ★★★ 修改處：新的、基於時間的動畫函式 ★★★ ---
+        function animateProgressOverTime(duration, message) {
+            let startTime = null;
+            // 動畫的目標是跑到 95%，留下 5% 給最後的完成步驟
+            const endProgress = 95; 
+
+            const step = (timestamp) => {
+                if (!startTime) startTime = timestamp;
+                const elapsed = timestamp - startTime;
+                const progress = Math.min((elapsed / duration) * endProgress, endProgress);
+                
+                updateStatus(message, Math.floor(progress));
+
+                if (elapsed < duration) {
+                    animationFrameId = requestAnimationFrame(step);
+                }
+            };
+            animationFrameId = requestAnimationFrame(step);
+        }
+        
+        // --- 處理按鈕點擊事件 (邏輯微調) ---
+        submitBtn.addEventListener('click', async () => {
+            if (!mainDocInput.files[0] || !configInput.files[0] || !zipInput.files[0]) {
+                updateStatus('錯誤：請務必選擇全部三個檔案。', 0, true);
+                return;
+            }
+
+            // 1. 準備 UI
+            submitBtn.disabled = true;
+            submitBtn.classList.remove('pulse-animation');
+            statusContainer.classList.add('active');
+            downloadArea.classList.add('hidden');
+            downloadArea.innerHTML = '';
+            
+            const formData = new FormData();
+            formData.append('main_docx', mainDocInput.files[0]);
+            formData.append('config_file', configInput.files[0]);
+            formData.append('images_zip', zipInput.files[0]);
+            
+            // 2. 執行 API 請求與錯誤處理
+            try {
+                // ★★★ 修改處：呼叫新的動畫函式 ★★★
+                animateProgressOverTime(PROCESSING_ANIMATION_DURATION, '正在上傳並於後端處理中...');
+
+                const response = await fetch('/upload-and-process/', {
+                    method: 'POST',
+                    body: formData,
+                });
+                
+                // ★★★ 修改處：在收到回應後，停止進行中的動畫 ★★★
+                cancelAnimationFrame(animationFrameId);
+
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.detail || '後端處理時發生未知錯誤');
+                }
+                
+                const result = await response.json();
+                updateStatus(result.message || '處理完成！', 100);
+                showDownloadOptions(result);
+
+            } catch (error) {
+                // 如果出錯，也要停止動畫
+                cancelAnimationFrame(animationFrameId);
+                console.error('處理失敗:', error);
+                updateStatus(`錯誤: ${error.message}`, 100, true);
+                showDownloadOptions(null, true);
+            }
+        });
+
+        // --- 更新狀態顯示 (無變動) ---
+        function updateStatus(message, progress, isError = false) {
+            progressBar.style.width = `${progress}%`;
+            progressPercentage.textContent = `${progress}%`;
+            progressText.textContent = message;
+            statusDiv.textContent = message;
+            
+            if (isError) {
+                progressBar.classList.add('error');
+                progressText.style.color = 'var(--error-color)';
+            } else {
+                progressBar.classList.remove('error');
+                progressText.style.color = '';
+            }
+        }
+
+        // --- 顯示下載或重設按鈕 (無變動) ---
+        function showDownloadOptions(data, isError = false) {
+            downloadArea.innerHTML = '';
+            downloadArea.classList.remove('hidden');
+
+            if (!isError && data && data.download_filename) {
+                const downloadLink = document.createElement('a');
+                downloadLink.href = `/download/${data.download_filename}`;
+                downloadLink.setAttribute('download', data.output_filename);
+                downloadLink.className = 'download-btn inline-flex items-center px-6 py-3 rounded-lg text-white font-medium shadow-lg animate__animated animate__fadeIn';
+                downloadLink.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" /></svg> 下載生成的文件`;
+                downloadArea.appendChild(downloadLink);
+            }
+
+            const resetButtonContainer = document.createElement('div');
+            resetButtonContainer.className = 'mt-4';
+            const resetButton = document.createElement('button');
+            resetButton.className = 'reset-btn px-4 py-2 border border-gray-300 rounded-lg text-gray-700 bg-white hover:bg-gray-50 font-medium transition-all shadow-sm animate__animated animate__fadeIn';
+            resetButton.style.animationDelay = '0.2s';
+            resetButton.innerHTML = `<svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2 inline" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" /></svg> 重新上傳檔案`;
+            resetButton.onclick = () => location.reload();
+            resetButtonContainer.appendChild(resetButton);
+            downloadArea.appendChild(resetButtonContainer);
+        }
+    </script>
+</body>
+</html>
